@@ -1,0 +1,140 @@
+<!doctype html>
+<html>
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/modules/series-label.js"></script>
+<script src="https://code.highcharts.com/modules/exporting.js"></script>
+<script src="https://code.highcharts.com/modules/export-data.js"></script>
+<script src="http://cdnjs.cloudflare.com/ajax/libs/mathjs/3.2.1/math.min.js"></script>
+
+    <head>
+        <title>Assessment Project</title>
+    </head>
+    <body>
+            <div id="demo"></div>
+            <div id="container"></div>
+    </body>
+</html>
+
+
+<script>
+//connect to Deribit API
+  myTimer()  //set a function in order to update every minute
+  function myTimer() {
+  var msg =
+      {"jsonrpc": "2.0",
+       "method": "public/get_funding_chart_data",
+       "id": 3,
+       "params": {
+          "instrument_name": "BTC-PERPETUAL",
+          "length": "8h"}
+      };
+
+   var ws = new WebSocket('wss://test.deribit.com/ws/api/v2');
+
+
+   ws.onmessage = function (e) {
+       // do something with the response...
+       console.log('received from server : ', JSON.parse(e.data)); // used to debug with F12
+       var callback = JSON.parse(e.data).result;
+       var callback2 = JSON.parse(e.data).result;  //for deep copy
+       //document.getElementById("demoooo").innerHTML = callback.
+       var a = [];  //get the 4H data
+        for (i = 0; i < 240; i++) {
+           a[i] =callback.data[i][1];
+        }
+       average4H=math.mean(a); //calculate the rolling rate (avarage of 4H). Also, the 'mean'function' is from a math package
+       averforshow=math.mean(a);
+       var averforshow=Number(averforshow*100).toFixed(6);
+       averforshow+="%";
+       console.log('received from server : ', averforshow);
+       var cr=Number(callback.current_interest*100).toFixed(6);
+       cr+="%";
+       document.getElementById("demo").innerHTML = 'rolling rate:' +averforshow +    ' current rate: ' + cr
+        var rollrate = callback2.data.concat();
+        for (i = 0; i < 480; i++) {
+          rollrate[i][1]=average4H*100;
+         }
+
+         for (i = 0; i < 480; i++) {
+
+           callback.data[i][1]=callback.data[i][1]*100;
+          }
+
+      // for drawing a chart
+       Highcharts.chart('container', {
+         chart: {
+           type: 'spline'
+         },
+         title: {
+           text: 'real-time funding rate'
+         },
+         subtitle: {
+           text: 'BTC-PERPETUAL funding rate from deribit api (update every 1 min)'
+         },
+         xAxis: {
+           type: 'datetime',
+           tickPixelInterval: 10,
+          // tickinterval:1000*60,
+           dateTimeLabelFormats: { // don't display the dummy year
+             second: '%H:%M:%S',
+
+           },
+           title: {
+             text: 'time'
+           }
+
+
+         },
+
+
+         yAxis: {
+           title: {
+             text: 'rate %'
+
+           },
+          // min: -0.1,
+           tickInterval: 0.001
+
+
+         },
+         tooltip: {
+           headerFormat: '<b>{series.name}</b><br>',
+           pointFormat: '{point.x:%Y-%m-%d %H:%M:%S}<br/>{point.y:.6f}%'
+         },
+
+         plotOptions: {
+           spline: {
+             marker: {
+               enabled: false
+             }
+           }
+         },
+
+         colors: ['#5CF', '#FF0000', '#06C', '#036', '#000'],
+
+         // Define the data points. All series have a dummy year
+         // of 1970/71 in order to be compared on the same x axis. Note
+         // that in JavaScript, months start at 0 for January, 1 for February etc.
+         series: [ {
+           name: "funding rate -8H",
+           data: callback.data
+         },
+          {
+            name: "rolling rate -4H",
+           data: rollrate
+
+          }
+         ]
+       });
+
+
+   };
+
+ var myVar = setInterval(myTimer, 60000); //update every second
+ ws.onopen = function () {
+      ws.send(JSON.stringify(msg));
+  };
+
+
+};
+</script>
